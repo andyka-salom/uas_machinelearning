@@ -10,7 +10,7 @@ from scipy.stats import zscore
 st.set_page_config(page_title="Skincare Products Recommendation System", layout="wide")
 
 # Read the dataset
-df = pd.read_csv('prepocessed_skincare.csv')  # Assuming the dataset is available
+df = pd.read_csv('../UAS_ML PRAK/uas_machinelearning/prepocessed_skincare.csv')  # Assuming the dataset is available
 
 # Simulate 'Liked' column for user feedback (0 = not liked, 1 = liked)
 df['Liked'] = np.random.choice([0, 1], size=len(df))
