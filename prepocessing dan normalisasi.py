@@ -1,12 +1,10 @@
 import pandas as pd
 import numpy as np
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
 from scipy.stats import zscore
-from sklearn.preprocessing import MinMaxScaler
+import os
 
 # Load dataset
-file_path = '../uas_ml prak/skincare.csv'  # Lokasi file yang diunggah
+file_path = '../uas_ml prak/uas_machinelearning/skincare.csv'
 df = pd.read_csv(file_path)
 
 # Menampilkan informasi awal dataset
@@ -22,30 +20,52 @@ print(df.isnull().sum())
 
 # Menghapus baris dengan nilai yang hilang
 df.dropna(inplace=True)
+
 print("\nData setelah menghapus baris dengan missing values:")
 print(df.info())
 print("============================================================")
 
-# Deteksi Outlier menggunakan Z-Score
-numeric_cols = df.select_dtypes(include=['float64', 'int64']).columns
-print("\nKolom numerik yang akan diperiksa outlier:", numeric_cols.tolist())
+# deteksi outlier hanya untuk kolom 'price' dan 'rank'
+columns_to_check = ['Price', 'Rank']
 
-z_scores = np.abs(zscore(df[numeric_cols]))
+# Validasi tipe data sebelum melakukan Z-score
+for col in columns_to_check:
+    if not np.issubdtype(df[col].dtype, np.number):
+        print(f"Koleksi {col} bukan tipe numerik. Periksa dataset.")
+        exit()
 
-# Menghapus baris dengan outlier
-outliers_mask = (z_scores < 3).all(axis=1)
-df = df[outliers_mask]
-print(f"\nData setelah menghapus outlier: {df.shape[0]} baris")
+# Menghitung Z-score untuk mendeteksi outlier
+z_scores = zscore(df[columns_to_check].values, axis=0)  # Menggunakan .values untuk memastikan format array NumPy
+outliers_per_column = {}
+
+# Debugging untuk memeriksa bentuk z_scores
+print(f"Shape dari z_scores: {z_scores.shape}")
 print("============================================================")
 
-# Normalisasi Data
-scaler = MinMaxScaler()
-df[numeric_cols] = scaler.fit_transform(df[numeric_cols])
-print("\nData setelah normalisasi:")
-print(df.head())
+for idx, col in enumerate(columns_to_check):
+    # Debugging untuk memeriksa panjang indeks
+    print(f"Memeriksa indeks untuk kolom: {col}, panjang kolom: {len(df[col])}, panjang z_scores: {len(z_scores[:, idx])}")
+
+    # Menghindari kesalahan dengan memastikan panjang array cocok
+    if len(z_scores[:, idx]) == len(df[col]):
+        outliers = df[col][z_scores[:, idx] > 3].tolist()
+        outliers_per_column[col] = outliers
+    else:
+        print(f"Kesalahan panjang array: {len(z_scores[:, idx])} dan {len(df[col])}")
+
+# Mengganti outlier dengan nilai rata-rata
+df_cleaned = df.copy()
+for col in columns_to_check:
+    if len(outliers_per_column[col]) > 0:
+        # Hitung nilai rata-rata dari kolom tanpa outlier
+        mean_value = df_cleaned[~df_cleaned[col].isin(outliers_per_column[col])][col].mean()
+        df_cleaned[col] = df_cleaned[col].apply(lambda x: mean_value if x in outliers_per_column[col] else x)
+
+print("\nData setelah mengganti outlier dengan rata-rata:")
+print(df_cleaned.head())
 print("============================================================")
 
-# Menyimpan data hasil preprocessing ke file baru
-output_file = '../uas_ml prak/preprocessed_skincare.csv'
-df.to_csv(output_file, index=False)
-print(f"\nData hasil preprocessing disimpan ke: {output_file}")
+# Simpan hasil preprocessing ke file baru
+# output_file = '../uas_ml prak/uas_machinelearning/preprocessedbaru_skincare.csv'
+# df_cleaned.to_csv(output_file, index=False)
+# print(f"\nData hasil preprocessing disimpan ke: {output_file}")
